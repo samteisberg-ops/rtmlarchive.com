@@ -380,7 +380,10 @@ const SONGS=[["Random Thunder","Best of 2021",32,"Love & Hate","Michael Kiwanuka
 const F = {LEAGUE:0,ROUND:1,ROUND_NUM:2,SONG:3,ARTIST:4,ALBUM:5,PLACE:6,SUBMITTER:7};
 
 // ── Derived stats ──
-const uniqueLeagues = [...new Set(SONGS.map(s=>s[F.LEAGUE]))].sort();
+const uniqueLeagues = [...new Set(SONGS.map(s=>s[F.LEAGUE]))].sort((a,b)=>{
+  const num = s => s==='Random Thunder' ? 1 : parseInt(s.replace('Random Thunder S',''));
+  return num(a)-num(b);
+});
 const uniqueRounds  = new Set(SONGS.map(s=>s[F.LEAGUE]+':'+s[F.ROUND])).size;
 const uniquePlayers = new Set(SONGS.map(s=>s[F.SUBMITTER]).filter(Boolean)).size;
 
