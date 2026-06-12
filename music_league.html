@@ -402,21 +402,158 @@ const artCache = new Map();
 (function(){
   const c = document.getElementById('bg-canvas');
   const ctx = c.getContext('2d');
-  let W,H,pts=[];
-  function resize(){W=c.width=innerWidth;H=c.height=innerHeight;pts=Array.from({length:80},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*2+.5}))}
-  resize();window.addEventListener('resize',resize);
-  function draw(){
-    ctx.clearRect(0,0,W,H);
-    pts.forEach(p=>{
-      p.x=(p.x+p.vx+W)%W;p.y=(p.y+p.vy+H)%H;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle='rgba(168,85,247,.6)';ctx.fill();
+  let W, H, t = 0;
+
+  // Color palette: purple, violet, blue, pink, cyan
+  const COLORS = [
+    [168,85,247],  // purple
+    [124,58,237],  // violet
+    [99,102,241],  // indigo
+    [236,72,153],  // pink
+    [34,211,238],  // cyan
+    [192,38,211],  // fuchsia
+  ];
+
+  // ── Aurora orbs (large, vivid) ──
+  const orbs = Array.from({length:8}, (_, i) => ({
+    x: Math.random(), y: Math.random(),
+    vx: (Math.random()-.5)*0.0004, vy: (Math.random()-.5)*0.0004,
+    r: 0.22 + Math.random()*0.28,
+    col: COLORS[i % COLORS.length],
+    phase: Math.random()*Math.PI*2,
+    speed: 0.008 + Math.random()*0.012
+  }));
+
+  // ── Particles ──
+  const N = 200;
+  const pts = Array.from({length:N}, () => ({
+    x: Math.random(), y: Math.random(),
+    vx: (Math.random()-.5)*0.0012, vy: (Math.random()-.5)*0.0012,
+    r: Math.random()*2.5+0.5,
+    col: COLORS[Math.floor(Math.random()*COLORS.length)],
+    pulse: Math.random()*Math.PI*2,
+    pspeed: 0.04 + Math.random()*0.06
+  }));
+
+  // ── Shooting stars ──
+  const stars = [];
+  function spawnStar(){
+    const col = COLORS[Math.floor(Math.random()*COLORS.length)];
+    stars.push({
+      x: Math.random()*W, y: Math.random()*H*0.6,
+      vx: (2+Math.random()*4)*(Math.random()<.5?1:-1),
+      vy: 1+Math.random()*2,
+      len: 60+Math.random()*100,
+      alpha: 0.9, col
     });
-    pts.forEach((a,i)=>pts.slice(i+1).forEach(b=>{
-      const d=Math.hypot(a.x-b.x,a.y-b.y);
-      if(d<120){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
-        ctx.strokeStyle=`rgba(168,85,247,${.15*(1-d/120)})`;ctx.lineWidth=.5;ctx.stroke();}
-    }));
+  }
+  let starTimer = 0;
+
+  // ── Shockwaves ──
+  const shocks = [];
+  function spawnShock(){
+    const col = COLORS[Math.floor(Math.random()*COLORS.length)];
+    shocks.push({x:Math.random()*W, y:Math.random()*H, r:0, alpha:0.5, col});
+  }
+  let shockTimer = 0;
+
+  // ── Ripple rings ──
+  const rings = [];
+  function spawnRing(){
+    const col = COLORS[Math.floor(Math.random()*COLORS.length)];
+    rings.push({x:Math.random()*W, y:Math.random()*H, r:0,
+      maxR:100+Math.random()*180, alpha:0.35,
+      speed:1.2+Math.random()*1.5, col});
+  }
+  let ringTimer = 0;
+
+  function resize(){ W=c.width=innerWidth; H=c.height=innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+
+  function rgb(col,a){ return `rgba(${col[0]},${col[1]},${col[2]},${a})`; }
+
+  function draw(){
+    t++;
+    ctx.clearRect(0,0,W,H);
+
+    // ── Aurora orbs ──
+    orbs.forEach(o => {
+      o.x = (o.x + o.vx + 1) % 1;
+      o.y = (o.y + o.vy + 1) % 1;
+      const pulse = 0.8 + 0.2*Math.sin(t*o.speed + o.phase);
+      const rad = o.r * Math.min(W,H) * pulse;
+      const gx = o.x*W, gy = o.y*H;
+      const g = ctx.createRadialGradient(gx,gy,0,gx,gy,rad);
+      g.addColorStop(0,   rgb(o.col, 0.18));
+      g.addColorStop(0.4, rgb(o.col, 0.10));
+      g.addColorStop(0.8, rgb(o.col, 0.04));
+      g.addColorStop(1,   rgb(o.col, 0));
+      ctx.beginPath(); ctx.arc(gx,gy,rad,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+    });
+
+    // ── Particles with glow ──
+    pts.forEach(p => {
+      p.x = (p.x + p.vx + 1) % 1;
+      p.y = (p.y + p.vy + 1) % 1;
+      p.pulse += p.pspeed;
+      const pr = p.r * (0.6 + 0.7*Math.abs(Math.sin(p.pulse)));
+      const alpha = 0.5 + 0.5*Math.abs(Math.sin(p.pulse*0.8));
+      // glow halo
+      ctx.beginPath(); ctx.arc(p.x*W, p.y*H, pr*3, 0, Math.PI*2);
+      ctx.fillStyle = rgb(p.col, alpha*0.12); ctx.fill();
+      // core
+      ctx.beginPath(); ctx.arc(p.x*W, p.y*H, pr, 0, Math.PI*2);
+      ctx.fillStyle = rgb(p.col, alpha); ctx.fill();
+    });
+
+    // ── Connecting lines ──
+    for(let i=0;i<N;i++) for(let j=i+1;j<N;j++){
+      const dx=(pts[i].x-pts[j].x)*W, dy=(pts[i].y-pts[j].y)*H;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<80){
+        ctx.beginPath();
+        ctx.moveTo(pts[i].x*W,pts[i].y*H);
+        ctx.lineTo(pts[j].x*W,pts[j].y*H);
+        ctx.strokeStyle=rgb(pts[i].col, 0.25*(1-d/80));
+        ctx.lineWidth=0.8; ctx.stroke();
+      }
+    }
+
+    // ── Ripple rings ──
+    if(++ringTimer>60){ringTimer=0;spawnRing();}
+    for(let i=rings.length-1;i>=0;i--){
+      const r=rings[i]; r.r+=r.speed; r.alpha*=0.978;
+      ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2);
+      ctx.strokeStyle=rgb(r.col,r.alpha); ctx.lineWidth=1.5; ctx.stroke();
+      if(r.r>r.maxR||r.alpha<0.004) rings.splice(i,1);
+    }
+
+    // ── Shooting stars ──
+    if(++starTimer>120){starTimer=0;spawnStar();}
+    for(let i=stars.length-1;i>=0;i--){
+      const s=stars[i];
+      s.x+=s.vx; s.y+=s.vy; s.alpha*=0.96;
+      const g=ctx.createLinearGradient(s.x,s.y,s.x-s.vx*(s.len/Math.hypot(s.vx,s.vy)),s.y-s.vy*(s.len/Math.hypot(s.vx,s.vy)));
+      g.addColorStop(0,rgb(s.col,s.alpha));
+      g.addColorStop(1,rgb(s.col,0));
+      ctx.beginPath(); ctx.moveTo(s.x,s.y);
+      ctx.lineTo(s.x-s.vx*(s.len/Math.hypot(s.vx,s.vy)), s.y-s.vy*(s.len/Math.hypot(s.vx,s.vy)));
+      ctx.strokeStyle=g; ctx.lineWidth=1.5; ctx.stroke();
+      if(s.alpha<0.03||s.x<-200||s.x>W+200||s.y>H+200) stars.splice(i,1);
+    }
+
+    // ── Shockwaves ──
+    if(++shockTimer>180){shockTimer=0;spawnShock();}
+    for(let i=shocks.length-1;i>=0;i--){
+      const s=shocks[i]; s.r+=3.5; s.alpha*=0.96;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.strokeStyle=rgb(s.col,s.alpha); ctx.lineWidth=2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r*0.7,0,Math.PI*2);
+      ctx.strokeStyle=rgb(s.col,s.alpha*0.4); ctx.lineWidth=1; ctx.stroke();
+      if(s.r>350||s.alpha<0.004) shocks.splice(i,1);
+    }
+
     requestAnimationFrame(draw);
   }
   draw();
