@@ -1312,4 +1312,44 @@ doSearch = function() {
       ...sp.map(p=>`<div class="vote-row" style="grid-template-columns:140px repeat(4,1fr)">
         <div class="vote-name">${p.name}</div>
         <div class="vote-bar-wrap"><div class="vote-bar up" style="width:${Math.round(p.upvotesGiven/maxV*BW)}px"></div><span class="vote-bar-num">${p.upvotesGiven}</span></div>
-        <div class="vote-bar-wrap"><div class="vote-bar up" style="width:${Math.round(p.upvotesReceived/max
+        <div class="vote-bar-wrap"><div class="vote-bar up" style="width:${Math.round(p.upvotesReceived/maxV*BW)}px;opacity:.62"></div><span class="vote-bar-num">${p.upvotesReceived}</span></div>
+        <div class="vote-bar-wrap"><div class="vote-bar" style="width:${Math.round(p.downvotesGiven/maxV*BW)}px;background:linear-gradient(90deg,#dc2626,#f87171)"></div><span class="vote-bar-num">${p.downvotesGiven}</span></div>
+        <div class="vote-bar-wrap"><div class="vote-bar" style="width:${Math.round(p.downvotesReceived/maxV*BW)}px;background:linear-gradient(90deg,#dc2626,#f87171);opacity:.62"></div><span class="vote-bar-num">${p.downvotesReceived}</span></div>
+      </div>`)
+    ].join('');
+
+    // ── Matchups tab ───────────────────────────────────────────────────────
+    const matchupSelect = document.getElementById('matchup-select');
+    PLAYERS.forEach((p, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = p;
+      matchupSelect.appendChild(opt);
+    });
+
+    const renderMatchup = (pIdx) => {
+      const rows = PLAYERS.map((opp, oi) => {
+        if (oi === pIdx) return null;
+        const gave = matrix[pIdx][oi];
+        const got  = matrix[oi][pIdx];
+        const ng = gave.up - gave.down;
+        const nr = got.up  - got.down;
+        const fmtNet = n => n === 0 ? '<span class="net-zero">0</span>'
+          : `<span class="${n>0?'net-pos':'net-neg'}">${n>0?'+'+n:n}</span>`;
+        const fmtV = n => n || '<span style="color:rgba(255,255,255,.2)">—</span>';
+        return `<tr>
+          <td>${opp}</td>
+          <td>${fmtV(gave.up)}</td><td>${fmtV(gave.down)}</td><td>${fmtNet(ng)}</td>
+          <td>${fmtV(got.up)}</td><td>${fmtV(got.down)}</td><td>${fmtNet(nr)}</td>
+        </tr>`;
+      }).filter(Boolean);
+      document.getElementById('matchup-tbody').innerHTML = rows.join('');
+    };
+
+    renderMatchup(0);
+    matchupSelect.addEventListener('change', () => renderMatchup(+matchupSelect.value));
+  }
+})();
+
+</script>
+</body>
+</html>
