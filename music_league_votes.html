@@ -1185,15 +1185,35 @@ doSearch = function() {
     PLAYERS.forEach((p, i) => { playerIdx[p] = i; });
 
     // Place finish counts
-    const lastSet = new Set(ROUND_SUMMARIES.map(r => r.league+'||||'+r.round+'||||'+r.last));
     const placeCounts = PLAYERS.map(() => ({first:0, second:0, third:0, last:0}));
+    // 1st/2nd/3rd from existing PLACE field
     SONGS.forEach(s => {
       const pi = playerIdx[s[F.SUBMITTER]];
       if (pi === undefined) return;
       if (s[F.PLACE] === '1st') placeCounts[pi].first++;
       else if (s[F.PLACE] === '2nd') placeCounts[pi].second++;
       else if (s[F.PLACE] === '3rd') placeCounts[pi].third++;
-      if (lastSet.has(s[F.LEAGUE]+'|||'+s[F.ROUND]+'|||'+s[F.SONG])) placeCounts[pi].last++;
+    });
+    // Last place: compute from actual vote totals per round
+    const _roundSongs = new Map();
+    SONGS.forEach((s, i) => {
+      const rk = s[F.LEAGUE]+'|||'+s[F.ROUND];
+      if (!_roundSongs.has(rk)) _roundSongs.set(rk, []);
+      _roundSongs.get(rk).push(i);
+    });
+    _roundSongs.forEach(indices => {
+      const scores = indices.map(si => {
+        const votes = SONG_VOTES[si] || [];
+        const net = votes.reduce((sum,[,v]) => sum+v, 0);
+        return {si, net};
+      });
+      const minNet = Math.min(...scores.map(x => x.net));
+      scores.forEach(({si, net}) => {
+        if (net === minNet) {
+          const pi = playerIdx[SONGS[si][F.SUBMITTER]];
+          if (pi !== undefined) placeCounts[pi].last++;
+        }
+      });
     });
 
     // Enriched player stats (add avg/song + place counts)
