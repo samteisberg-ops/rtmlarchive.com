@@ -1216,11 +1216,19 @@ doSearch = function() {
       });
     });
 
-    // Enriched player stats (add avg/song + place counts)
-    const enrichedStats = PLAYER_STATS.map(p => {
+    // Recompute totalScore from raw SONG_VOTES (upvotes - downvotes per song submitted)
+    const playerNetScore = new Array(PLAYERS.length).fill(0);
+    SONG_VOTES.forEach((votes, si) => {
+      const pi = playerIdx[SONGS[si][F.SUBMITTER]];
+      if (pi === undefined) return;
+      votes.forEach(([, v]) => { playerNetScore[pi] += v; });
+    });
+
+    enrichedStats = PLAYER_STATS.map(p => {
       const pi = playerIdx[p.name];
       const pc = pi !== undefined ? placeCounts[pi] : {first:0,second:0,third:0,last:0};
-      return Object.assign({}, p, pc, {avg: p.songs > 0 ? p.totalScore / p.songs : 0});
+      const totalScore = pi !== undefined ? playerNetScore[pi] : p.totalScore;
+      return Object.assign({}, p, pc, {totalScore, avg: p.songs > 0 ? totalScore / p.songs : 0});
     });
 
     // Interaction matrix: matrix[voterIdx][submitteeIdx] = {up, down}
