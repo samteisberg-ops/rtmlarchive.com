@@ -1344,4 +1344,28 @@ doSearch = function() {
 
     const renderMatchup = (pIdx) => {
       const rows = PLAYERS.map((opp, oi) => {
-  
+        if (oi === pIdx) return null;
+        const gave = matrix[pIdx][oi];
+        const got  = matrix[oi][pIdx];
+        const ng = gave.up - gave.down;
+        const nr = got.up  - got.down;
+        const fmtNet = n => n === 0 ? '<span class="net-zero">0</span>'
+          : `<span class="${n>0?'net-pos':'net-neg'}">${n>0?'+'+n:n}</span>`;
+        const fmtV = n => n || '<span style="color:rgba(255,255,255,.2)">\u2014</span>';
+        return `<tr>
+          <td>${opp}</td>
+          <td>${fmtV(gave.up)}</td><td>${fmtV(gave.down)}</td><td>${fmtNet(ng)}</td>
+          <td>${fmtV(got.up)}</td><td>${fmtV(got.down)}</td><td>${fmtNet(nr)}</td>
+        </tr>`;
+      }).filter(Boolean);
+      document.getElementById('matchup-tbody').innerHTML = rows.join('');
+    };
+
+    renderMatchup(0);
+    matchupSelect.addEventListener('change', () => renderMatchup(+matchupSelect.value));
+  }
+})();
+
+</script>
+</body>
+</html>
