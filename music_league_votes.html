@@ -1216,19 +1216,37 @@ doSearch = function() {
       });
     });
 
-    // Recompute totalScore from raw SONG_VOTES (upvotes - downvotes per song submitted)
-    const playerNetScore = new Array(PLAYERS.length).fill(0);
+    // Recompute vote stats from raw SONG_VOTES
+    const playerNetScore    = new Array(PLAYERS.length).fill(0);
+    const playerUpGiven     = new Array(PLAYERS.length).fill(0);
+    const playerDownGiven   = new Array(PLAYERS.length).fill(0);
+    const playerUpReceived  = new Array(PLAYERS.length).fill(0);
+    const playerDownReceived= new Array(PLAYERS.length).fill(0);
     SONG_VOTES.forEach((votes, si) => {
-      const pi = playerIdx[SONGS[si][F.SUBMITTER]];
-      if (pi === undefined) return;
-      votes.forEach(([, v]) => { playerNetScore[pi] += v; });
+      const submitter = playerIdx[SONGS[si][F.SUBMITTER]];
+      votes.forEach(([voter, v]) => {
+        if (v > 0) {
+          playerUpGiven[voter]++;
+          if (submitter !== undefined) { playerUpReceived[submitter]++; playerNetScore[submitter]++; }
+        } else {
+          playerDownGiven[voter]++;
+          if (submitter !== undefined) { playerDownReceived[submitter]++; playerNetScore[submitter]--; }
+        }
+      });
     });
 
     enrichedStats = PLAYER_STATS.map(p => {
       const pi = playerIdx[p.name];
       const pc = pi !== undefined ? placeCounts[pi] : {first:0,second:0,third:0,last:0};
-      const totalScore = pi !== undefined ? playerNetScore[pi] : p.totalScore;
-      return Object.assign({}, p, pc, {totalScore, avg: p.songs > 0 ? totalScore / p.songs : 0});
+      const totalScore       = pi !== undefined ? playerNetScore[pi]     : p.totalScore;
+      const upvotesGiven     = pi !== undefined ? playerUpGiven[pi]      : p.upvotesGiven;
+      const downvotesGiven   = pi !== undefined ? playerDownGiven[pi]    : p.downvotesGiven;
+      const upvotesReceived  = pi !== undefined ? playerUpReceived[pi]   : p.upvotesReceived;
+      const downvotesReceived= pi !== undefined ? playerDownReceived[pi] : p.downvotesReceived;
+      return Object.assign({}, p, pc, {
+        totalScore, upvotesGiven, downvotesGiven, upvotesReceived, downvotesReceived,
+        avg: p.songs > 0 ? totalScore / p.songs : 0
+      });
     });
 
     // Interaction matrix: matrix[voterIdx][submitteeIdx] = {up, down}
