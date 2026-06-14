@@ -863,7 +863,7 @@ function applyArt(el,url){
   const ph=el.querySelector('.art-placeholder');
   if(!ph)return;
   const img=document.createElement('img');
-  img.src=url;img.alt='';img.loading='lazy';
+  img.src=url;img.alt='';
   img.onload=()=>{ph.replaceWith(img);};
 }
 
