@@ -456,6 +456,13 @@ h1{
 .ov-lbl{font-size:.7rem;color:rgba(255,255,255,.45);margin-top:.28rem;text-transform:uppercase;letter-spacing:.04em}
 .section-title{font-size:.87rem;font-weight:700;color:#c084fc;margin:.15rem 0 .65rem;
   text-transform:uppercase;letter-spacing:.07em}
+.hof-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.85rem}
+.hof-card{padding:1rem 1.1rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px}
+.hof-season{font-size:.85rem;font-weight:700;color:#fff;margin-bottom:.65rem}
+.hof-row{display:flex;align-items:center;gap:.5rem;padding:.22rem 0;font-size:.8rem}
+.hof-medal{width:20px;text-align:center;flex-shrink:0;font-size:.95rem}
+.hof-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.85)}
+.hof-score{color:#c084fc;font-weight:700;font-size:.76rem;flex-shrink:0}
 .top-song-row{display:flex;align-items:center;gap:.6rem;padding:.45rem .75rem;
   background:rgba(255,255,255,.03);border-radius:9px;font-size:.82rem;margin-bottom:.3rem;border:1px solid rgba(255,255,255,.05)}
 .player-table{width:100%;border-collapse:collapse;font-size:.81rem}
@@ -585,12 +592,15 @@ h1{
       <button class="mtab" data-panel="players">Players</button>
       <button class="mtab" data-panel="voting">Voting Patterns</button>
       <button class="mtab" data-panel="matchups">Player Interactions</button>
+      <button class="mtab" data-panel="halloffame">Hall of Fame</button>
     </div>
     <div class="modal-body">
       <div class="tab-panel active" id="panel-overview">
         <div class="ov-grid" id="ov-stats"></div>
         <div class="section-title">🏆 Top 20 Songs of All Time</div>
         <div id="top-songs"></div>
+        <div class="section-title" style="margin-top:1.2rem">💩 10 Most Downvoted Songs of All Time</div>
+        <div id="most-downvoted"></div>
         <div class="ov-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1.2rem">
           <div>
             <div class="section-title">🎤 Most Submitted Artists</div>
@@ -646,6 +656,10 @@ h1{
           </tr></thead>
           <tbody id="matchup-tbody"></tbody>
         </table></div>
+      </div>
+      <div class="tab-panel" id="panel-halloffame">
+        <div class="section-title">🏆 Hall of Fame — Top 3 Finishers by Season</div>
+        <div class="hof-grid" id="hof-grid"></div>
       </div>
     </div>
   </div>
@@ -1361,6 +1375,58 @@ doSearch = function() {
              </div>
            </div>`).join('')
       : '<div style="color:rgba(255,255,255,.3);font-size:.82rem;padding:.5rem 0">No repeated songs found.</div>';
+
+    // ── 10 Most downvoted songs of all time ────────────────────────────────
+    const downvoteMag = SONG_VOTES.map(votes => votes.filter(([,v])=>v<0).reduce((s,[,v])=>s-v,0));
+    const mostDownvoted = SONGS.map((s,i)=>[s,downvoteMag[i]||0]).filter(([,dv])=>dv>0).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    document.getElementById('most-downvoted').innerHTML = mostDownvoted.length ? mostDownvoted.map(([s,dv],i)=>
+      `<div class="top-song-row">
+         <span style="width:24px;text-align:center;flex-shrink:0;font-weight:700;color:#a855f7">#${i+1}</span>
+         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s[F.SONG])}</span>
+         <span style="color:rgba(255,255,255,.4);font-size:.74rem;flex-shrink:0;margin:0 .5rem">${escHtml(s[F.ARTIST])}</span>
+         <span style="color:rgba(255,255,255,.3);font-size:.71rem;flex-shrink:0;margin-right:.5rem">${s[F.LEAGUE].replace('Random Thunder S','RT S').replace('Random Thunder','RT S1')}</span>
+         <span style="font-weight:700;color:#f87171;flex-shrink:0">-${dv}</span>
+       </div>`).join('') : '<div style="color:rgba(255,255,255,.3);font-size:.82rem;padding:.5rem 0">No downvoted songs found.</div>';
+
+    // ── Hall of Fame: top 3 finishers by season ──────────────────────────
+    // Sourced directly from each season's official Standings page on
+    // app.musicleague.com (not re-derived from vote math, since Music
+    // League's own per-round point system doesn't always match a simple
+    // sum of net votes). Ties are resolved exactly as the site displays them.
+    const HOF_OFFICIAL = {
+      "Random Thunder": [["SAM.i.AM",149],["megpov",147],["Melanie Povlitzki",145]],
+      "Random Thunder S2": [["Lisa Maria",72],["SAM.i.AM",70],["JtKool",66]],
+      "Random Thunder S3": [["Kathleen Sharkey",102],["Ben Calendine",100],["Lisa Maria",83]],
+      "Random Thunder S4": [["Kelly Calendine",85],["Ben Calendine",74],["Marina Pov",70]],
+      "Random Thunder S5": [["TBone",113],["Lisa Maria",103],["Marina Pov",103]],
+      "Random Thunder S6": [["Thunder",101],["Kelly Calendine",100],["Marina Pov",98]],
+      "Random Thunder S7": [["Ben Calendine",102],["Melanie Povlitzki",98],["Marina Pov",95]],
+      "Random Thunder S8": [["rochill888",100],["Marina Pov",89],["Lisa Maria",83]],
+      "Random Thunder S9": [["Awesome",94],["jakesayre123",85],["Lisa Maria",77]],
+      "Random Thunder S10": [["Lisa Maria",82],["Ben Calendine",66],["TBone",64]],
+      "Random Thunder S11": [["Lisa Maria",111],["JtKool",93],["Marina Pov",73]],
+      "Random Thunder S12": [["Awesome",85],["Elissa",78],["Lisa Maria",74]],
+      "Random Thunder S13": [["Awesome",79],["Marina Pov",77],["Lisa Maria",69]],
+      "Random Thunder S14": [["SAM.i.AM",33],["Alex The Projectionist",32],["JtKool",31]],
+    };
+    const HOF_IN_PROGRESS = "Random Thunder S14"; // standings not yet final
+    const hofMedals = ['🥇','🥈','🥉'];
+    document.getElementById('hof-grid').innerHTML = SEASON_ORDER.map(league => {
+      const standings = HOF_OFFICIAL[league];
+      if (!standings || !standings.length) return '';
+      const rows = standings.map(([name, score], i) =>
+        `<div class="hof-row">
+           <span class="hof-medal">${hofMedals[i]}</span>
+           <span class="hof-name">${escHtml(name)}</span>
+           <span class="hof-score">${score}</span>
+         </div>`).join('');
+      const inProgress = league === HOF_IN_PROGRESS
+        ? ' <span style="font-size:.68rem;font-weight:400;color:rgba(255,255,255,.4);text-transform:none">(in progress)</span>' : '';
+      return `<div class="hof-card">
+        <div class="hof-season">${SEASON_LABELS[league]||league}${inProgress}</div>
+        ${rows}
+      </div>`;
+    }).join('');
 
     // ── Player leaderboard ─────────────────────────────────────────────────
     let sortCol='totalScore', sortAsc=false;
