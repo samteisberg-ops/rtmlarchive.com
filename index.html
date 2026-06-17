@@ -1417,4 +1417,97 @@ doSearch = function() {
       const rows = standings.map(([name, score], i) =>
         `<div class="hof-row">
            <span class="hof-medal">${hofMedals[i]}</span>
-           <span class="hof-name">${es
+           <span class="hof-name">${escHtml(name)}</span>
+           <span class="hof-score">${score}</span>
+         </div>`).join('');
+      const inProgress = league === HOF_IN_PROGRESS
+        ? ' <span style="font-size:.68rem;font-weight:400;color:rgba(255,255,255,.4);text-transform:none">(in progress)</span>' : '';
+      return `<div class="hof-card">
+        <div class="hof-season">${SEASON_LABELS[league]||league}${inProgress}</div>
+        ${rows}
+      </div>`;
+    }).join('');
+
+    // ── Player leaderboard ─────────────────────────────────────────────────
+    let sortCol='totalScore', sortAsc=false;
+    const renderTable = () => {
+      const d = enrichedStats.slice().sort((a,b)=>{
+        const [av,bv]=[a[sortCol],b[sortCol]];
+        return sortCol==='name'?(sortAsc?av.localeCompare(bv):bv.localeCompare(av)):(sortAsc?av-bv:bv-av);
+      });
+      document.getElementById('player-tbody').innerHTML = d.map(p=>{
+        const avg = p.avg.toFixed(2);
+        return `<tr>
+          <td>${p.name}</td><td>${p.songs}</td><td>${p.totalScore}</td>
+          <td style="color:#c084fc;font-weight:600">${avg}</td>
+          <td style="color:#fbbf24;font-weight:700">${p.first}</td>
+          <td style="color:#94a3b8;font-weight:600">${p.second}</td>
+          <td style="color:#cd7c3f;font-weight:600">${p.third}</td>
+          <td style="color:#f87171;font-weight:600">${p.last}</td>
+          <td>${p.upvotesReceived}</td><td>${p.downvotesReceived}</td>
+          <td>${p.upvotesGiven}</td><td>${p.downvotesGiven}</td>
+        </tr>`;
+      }).join('');
+      document.querySelectorAll('#player-table th').forEach(th=>{
+        const base=th.dataset.col===sortCol;
+        const txt=th.textContent.replace(/ [▲▼]$/,'');
+        th.textContent=txt+(base?(sortAsc?' ▲':' ▼'):'');
+      });
+    };
+    document.querySelectorAll('#player-table th').forEach(th=>th.addEventListener('click',()=>{
+      if(sortCol===th.dataset.col)sortAsc=!sortAsc; else{sortCol=th.dataset.col;sortAsc=false;}
+      renderTable();
+    }));
+    renderTable();
+
+    // ── Vote bars ──────────────────────────────────────────────────────────
+    const maxV=Math.max(...enrichedStats.map(p=>Math.max(p.upvotesGiven,p.upvotesReceived,p.downvotesGiven,p.downvotesReceived)))||1;
+    const BW=120;
+    const sp=enrichedStats.slice().sort((a,b)=>b.upvotesGiven-a.upvotesGiven);
+    document.getElementById('vote-bars').innerHTML=[
+      `<div class="vote-row" style="font-size:.69rem;color:rgba(255,255,255,.32);margin-bottom:.15rem;font-weight:600;grid-template-columns:140px repeat(4,1fr)">
+         <div></div><div>↑ Upvotes Given</div><div>↑ Upvotes Received</div><div>↓ Downvotes Given</div><div>↓ Downvotes Received</div></div>`,
+      ...sp.map(p=>`<div class="vote-row" style="grid-template-columns:140px repeat(4,1fr)">
+        <div class="vote-name">${p.name}</div>
+        <div class="vote-bar-wrap"><div class="vote-bar up" style="width:${Math.round(p.upvotesGiven/maxV*BW)}px"></div><span class="vote-bar-num">${p.upvotesGiven}</span></div>
+        <div class="vote-bar-wrap"><div class="vote-bar up" style="width:${Math.round(p.upvotesReceived/maxV*BW)}px;opacity:.62"></div><span class="vote-bar-num">${p.upvotesReceived}</span></div>
+        <div class="vote-bar-wrap"><div class="vote-bar" style="width:${Math.round(p.downvotesGiven/maxV*BW)}px;background:linear-gradient(90deg,#dc2626,#f87171)"></div><span class="vote-bar-num">${p.downvotesGiven}</span></div>
+        <div class="vote-bar-wrap"><div class="vote-bar" style="width:${Math.round(p.downvotesReceived/maxV*BW)}px;background:linear-gradient(90deg,#dc2626,#f87171);opacity:.62"></div><span class="vote-bar-num">${p.downvotesReceived}</span></div>
+      </div>`)
+    ].join('');
+
+    // ── Matchups tab ───────────────────────────────────────────────────────
+    const matchupSelect = document.getElementById('matchup-select');
+    PLAYERS.forEach((p, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = p;
+      matchupSelect.appendChild(opt);
+    });
+
+    const renderMatchup = (pIdx) => {
+      const rows = PLAYERS.map((opp, oi) => {
+        if (oi === pIdx) return null;
+        const gave = matrix[pIdx][oi];
+        const got  = matrix[oi][pIdx];
+        const ng = gave.up - gave.down;
+        const nr = got.up  - got.down;
+        const fmtNet = n => n === 0 ? '<span class="net-zero">0</span>'
+          : `<span class="${n>0?'net-pos':'net-neg'}">${n>0?'+'+n:n}</span>`;
+        const fmtV = n => n || '<span style="color:rgba(255,255,255,.2)">\u2014</span>';
+        return `<tr>
+          <td>${opp}</td>
+          <td>${fmtV(gave.up)}</td><td>${fmtV(gave.down)}</td><td>${fmtNet(ng)}</td>
+          <td>${fmtV(got.up)}</td><td>${fmtV(got.down)}</td><td>${fmtNet(nr)}</td>
+        </tr>`;
+      }).filter(Boolean);
+      document.getElementById('matchup-tbody').innerHTML = rows.join('');
+    };
+
+    renderMatchup(0);
+    matchupSelect.addEventListener('change', () => renderMatchup(+matchupSelect.value));
+  }
+})();
+
+</script>
+</body>
+</html>
