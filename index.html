@@ -659,7 +659,14 @@ const F = {LEAGUE:0,ROUND:1,ROUND_NUM:2,SONG:3,ARTIST:4,ALBUM:5,PLACE:6,SUBMITTE
 // ── Song → SONG_VOTES index ──
 const SONG_VOTE_IDX = new Map();
 SONGS.forEach((s, i) => {
-  SONG_VOTE_IDX.set(s[F.LEAGUE]+'|||'+s[F.ROUND]+'|||'+s[F.SONG], i);
+  SONG_VOTE_IDX.set(s[F.LEAGUE]+'|||'+s[F.ROUND]+'|||'+s[F.SONG]+'|||'+s[F.ARTIST], i);
+});
+
+// ── Round name → round number (authoritative ordering, independent of array order) ──
+const ROUND_NUM_BY_KEY = new Map();
+SONGS.forEach(s => {
+  const k = s[F.LEAGUE]+'|||'+s[F.ROUND];
+  if (!ROUND_NUM_BY_KEY.has(k)) ROUND_NUM_BY_KEY.set(k, s[F.ROUND_NUM]);
 });
 
 
@@ -920,7 +927,7 @@ function renderBatch(songs, startIdx, count){
     const leagueShort = s[F.LEAGUE].replace('Random Thunder S','RT S').replace('Random Thunder','RT S1');
 
     // Look up votes for this song
-    const voteIdx = SONG_VOTE_IDX.get(s[F.LEAGUE]+'|||'+s[F.ROUND]+'|||'+s[F.SONG]);
+    const voteIdx = SONG_VOTE_IDX.get(s[F.LEAGUE]+'|||'+s[F.ROUND]+'|||'+s[F.SONG]+'|||'+s[F.ARTIST]);
     const votes = voteIdx !== undefined ? SONG_VOTES[voteIdx] : [];
     const upvotes  = votes.filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
     const downvotes = votes.filter(([,v]) => v < 0).sort((a,b) => a[1]-b[1]);
@@ -1101,7 +1108,9 @@ let activeRound = '';
   window.renderRoundCards = function(season) {
     rcWrap.innerHTML = '';
     if (!season) return;
-    const rounds = ROUND_SUMMARIES.filter(r => r.league === season);
+    const rounds = ROUND_SUMMARIES.filter(r => r.league === season).slice().sort((a, b) =>
+      (ROUND_NUM_BY_KEY.get(b.league+'|||'+b.round) || 0) - (ROUND_NUM_BY_KEY.get(a.league+'|||'+a.round) || 0)
+    );
     const trunc = s => s && s.length > 22 ? s.slice(0,21)+'…' : (s || '—');
 
     const allBtn = document.createElement('div');
